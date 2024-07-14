@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DFT Visualiser</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.0/p5.js"></script>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <script src="js/line-drawing.js" defer></script>
+    <script src="js/dft-simulation.js" defer></script>
+</head>
+<body>
+    <header>
+        <h1>DFT Visualiser</h1>
+    </header>
+
+    <section id="intro">
+        <h2>What even is a DFT?</h2>
+        <p>
+            The Discrete Fourier Transform (DFT) is a mathematical tool that allows us to take a bunch of data points and create a function which perfectly coincides with those data points. This means that given a sequence of numbers (which could represent anything like sound waves, stock prices, etc.), the DFT helps us understand the frequency components of that sequence.
+        </p>
+        <p>
+            This function is unique because it's the sum of many sinusoidal waves (waves that are transformations of sine waves). Imagine you have a complex wave signal - the DFT breaks it down into simple sine and cosine waves. Each of these waves has a specific frequency, amplitude, and phase, and when you add them all together, you get back the original signal.
+        </p>
+        <p>
+            The applications of the DFT span many fields, ranging from data compression (like how MP3 files compress audio) to solving differential equations in physics and engineering. By converting data into the frequency domain, we can easily analyze and manipulate the signal for various purposes.
+        </p>
+        <p>
+            The way it does this is by decomposing a sequence of values into components of different frequencies. This decomposition allows us to analyze the frequency content of the signal or data. Essentially, the DFT transforms a time-domain signal into its frequency-domain representation, providing insights into the periodic structures within the data. Each sinusoidal component has a specific frequency, amplitude, and phase, and when summed together, they reconstruct the original signal.
+        </p>
+
+        <section id="resources">
+            <h3>Some resources I used to learn about DFTs:</h3>
+            <ul>
+                <li>
+                    <a href="https://medium.com/@vladimirstojoc/drawing-images-with-fourier-series-e7468ecb47b0">A medium blog post - this is a useful interactive website which inspired this project</a>
+                </li>
+                <li><a href="https://youtu.be/spUNpyF58BY?si=uG_omdiGDdWHhuTu">3Blue1Brown's video on Fourier Transforms</a></li>
+                <li><a href="https://youtu.be/r6sGWTCMz2k?si=4fDPoob-u4zkW_GJ">Another 3Blue1Brown video in which he shows picture drawing with DFT</a></li>
+                <li><a href="https://youtu.be/yYEMxqreA10?si=LypsOxTiSEStlqtU">A video by Reducible breaking down DFTs (this goes more into the linear algebra side)</a></li>
+            </ul>
+        </section>
+    </section>
+    
+    <section id="dft-simulation">
+        <h2>DFT Simulation Tool</h2>
+        <p>
+            This section provides a simple tool to visualize how the Discrete Fourier Transform works. You can enter a series of values (for example, data points from a signal), and this tool will compute the DFT for you. The DFT will convert your time-domain data into its frequency-domain representation.
+        </p>
+        <p>
+            To use the tool, simply enter the values separated by spaces in the input box below and click on the "Plot DFT" button. The tool will then display a plot of the original data points and the reconstructed signal using the DFT. Additionally, it will show the individual sine waves that make up the original signal. This visualization helps you understand how different frequency components combine to form the overall signal.
+        </p>
+        <p>
+            Here’s a step-by-step breakdown of how this tool works:
+            <ul>
+                <li>Enter your data points in the input field. These points represent the signal you want to analyze.</li>
+                <li>When you click the "Plot DFT" button, the tool calculates the DFT of your input data. This involves breaking down your signal into its constituent sine and cosine waves, each with a specific frequency, amplitude, and phase.</li>
+                <li>The tool then plots the original data points and the reconstructed signal using Plotly, a graphing library. You’ll see your original points as markers and the reconstructed signal as a smooth line.</li>
+                <li>In addition to the reconstructed signal, the tool plots the individual sine waves that make up your original signal. These are shown as dashed lines, and each one corresponds to a particular frequency component.</li>
+            </ul>
+        </p>
+        <label for="valuesInput">Enter values separated by spaces:</label>
+        <input type="text" id="valuesInput" size="50">
+        <button onclick="plotDFT()">Plot DFT</button>
+        <div id="plot"></div>
+        <details>
+            <summary>Show Code</summary>
+            <pre>
+<code>
+    // manual DFT calculation
+    function manualDFT(y) {
+        const N = y.length;
+        const X = new Array(N).fill(0).map(() => new Complex(0, 0));
+        for (let k = 0; k < N; k++) {
+            for (let n = 0; n < N; n++) {
+                const angle = (-2 * Math.PI * k * n) / N;
+                const exp = new Complex(Math.cos(angle), Math.sin(angle));
+                X[k] = X[k].add(y[n].multiply(exp));
+            }
+        }
+        return X;
+    }
+
+    // manual inverse DFT calculation
+    function manualIDFT(Y, t_continuous, N) {
+        const y_reconstructed = new Array(t_continuous.length)
+            .fill(0)
+            .map(() => new Complex(0, 0));
+        for (let k = 0; k < N; k++) {
+            for (let n = 0; n < t_continuous.length; n++) {
+                const angle = (2 * Math.PI * k * t_continuous[n]) / N;
+                const exp = new Complex(Math.cos(angle), Math.sin(angle));
+                y_reconstructed[n] = y_reconstructed[n].add(Y[k].multiply(exp));
+            }
+        }
+        return y_reconstructed.map((val) => val.re / N);
+    }
+
+    // complex number class
+    class Complex {
+        constructor(re, im) {
+            // each number has a real and imaginary part
+            this.re = re;
+            this.im = im;
+        }
+
+        add(other) {
+            return new Complex(this.re + other.re, this.im + other.im);
+        }
+
+        multiply(other) {
+            // (a+bi)*(c+di)=ac+(ad+bc)i+bd
+            // = (ac-bd) * (ad+bc)i
+            return new Complex(
+                this.re * other.re - this.im * other.im,
+                this.re * other.im + this.im * other.re
+            );
+        }
+
+        abs() {
+            return Math.sqrt(this.re ** 2 + this.im ** 2);
+        }
+
+        angle() {
+            // using principle argument form (-pi < theta <= pi), hence we can use arctan
+            return Math.atan2(this.im, this.re);
+        }
+    }
+
+    // Function to plot the DFT and reconstructed signal
+    function plotDFT() {
+        const input = document.querySelector("#valuesInput").value;
+        const vals = input.split(" ").map(Number);
+
+        const t = Array.from({ length: vals.length }, (_, i) => i);
+        const y = vals.map((val) => new Complex(val, 0));
+        const N = y.length;
+
+        const Y = manualDFT(y);
+        const frequencies = Array.from({ length: N }, (_, i) => i / N);
+
+        // define the range for reconstruction
+        // essentially means there will be 1000 points in the sample
+        const t_continuous = Array.from(
+            { length: 1000 },
+            (_, i) => (i * (N - 1)) / 999
+        );
+
+        // reconstruct the signal using the manual inverse DFT
+        const y_reconstructed = manualIDFT(Y, t_continuous, N);
+
+        // PLOTTING
+
+        // original data points
+        const trace1 = {
+            x: t,
+            y: vals,
+            mode: "markers",
+            name: "Original Data Points",
+        };
+
+        // reconstructed signal
+        const trace2 = {
+            x: t_continuous,
+            y: y_reconstructed,
+            mode: "lines",
+            name: "Reconstructed Signal",
+        };
+
+        // individual sine waves
+        const sineWaves = frequencies.map((f, k) => {
+            const amplitude = Y[k].abs() / N;
+            const phase = Y[k].angle();
+            const sine_wave = t_continuous.map(
+                (t) => amplitude * Math.cos(2 * Math.PI * f * t + phase)
+            );
+            return {
+                x: t_continuous,
+                y: sine_wave,
+                mode: "lines",
+                line: { dash: "dash" },
+                name: `Sine wave k=${k}`,
+            };
+        });
+
+        // config settings
+        const layout = {
+            title: "Original Data and Reconstructed Signal",
+            xaxis: { title: "t" },
+            yaxis: { title: "Value" },
+        };
+
+        Plotly.newPlot("plot", [trace1, trace2, ...sineWaves], layout);
+    }
+</code>
+            </pre>
+        </details>
+    </section>
+
+    <section id="line-drawing">
+        <h2>Line Drawing Copy Tool using DFT</h2>
+        <p>
+            This is a fun and interactive tool that uses the principles of DFT to copy your line drawings. The idea here is that any shape or line you draw can be broken down into a series of circular motions - think of it as a bunch of spinning circles that together trace out the shape you drew.
+        </p>
+        <p>
+            Here’s how it works:
+            <ul>
+                <li>When you press the mouse button and start drawing on the canvas, the tool records the points of your drawing. These points are essentially the data points that represent your drawing.</li>
+                <li>Once you release the mouse button, the tool computes the DFT of those points. This means it converts your drawing into a series of epicycles (circles that move in circular paths).</li>
+                <li>The epicycles are then used to recreate your drawing. You’ll see how the circles move and trace out the shape you drew, illustrating how complex shapes can be represented by combinations of simple circular motions.</li>
+            </ul>
+        </p>
+        <p>
+            To try it out, click and drag your mouse to draw on the canvas. When you release the mouse, you'll see the tool reconstruct your drawing using the epicycles. It's a fascinating way to visualize how Fourier Transforms work!
+        </p>
+        <div id="line-drawing-container"></div>
+        <details>
+            <summary>Show Code</summary>
+            <pre>
+<code>
+    const DRAWING = 0;
+    const TRANSFORM = 1;
+
+    let points = [];
+    let fourierPoints;
+    let t = 0;
+    let tracedPath = [];
+    let sketch = [];
+    let mode = -1;
+    let fullCycleCompleted = false;
+
+    function mousePressed() {
+        mode = DRAWING;
+        sketch = [];
+        points = [];
+        t = 0;
+        tracedPath = [];
+        fullCycleCompleted = false;
+    }
+
+    function mouseReleased() {
+        mode = TRANSFORM;
+        const step = 1;
+        for (let i = 0; i < sketch.length; i += step) {
+            points.push(new ComplexNum(sketch[i].x, sketch[i].y));
+        }
+        fourierPoints = computeDFT(points);
+        fourierPoints.sort((a, b) => b.amplitude - a.amplitude);
+    }
+
+    function setup() {
+        createCanvas(windowWidth, windowHeight).parent('line-drawing-container');
+        background(0);
+        fill(255);
+        textAlign(CENTER);
+        textSize(40);
+        text("Draw some lines", width / 2, height / 2);
+    }
+
+    function visualizeEpicycles(x, y, rotation, fourierData) {
+        for (let i = 0; i < fourierData.length; i++) {
+            let prevX = x;
+            let prevY = y;
+            let frequency = fourierData[i].frequency;
+            let radius = fourierData[i].amplitude;
+            let phaseShift = fourierData[i].phase;
+            x += radius * cos(frequency * t + phaseShift + rotation);
+            y += radius * sin(frequency * t + phaseShift + rotation);
+
+            stroke(255, 100);
+            noFill();
+            ellipse(prevX, prevY, radius * 2);
+            stroke(255);
+            line(prevX, prevY, x, y);
+        }
+        return createVector(x, y);
+    }
+
+    function draw() {
+        if (mode === DRAWING) {
+            background(0);
+            let pt = createVector(mouseX - width / 2, mouseY - height / 2);
+            sketch.push(pt);
+            stroke(255);
+            noFill();
+            beginShape();
+            for (let v of sketch) {
+                vertex(v.x + width / 2, v.y + height / 2);
+            }
+            endShape();
+        } else if (mode === TRANSFORM && !fullCycleCompleted) {
+            background(0);
+            let v = visualizeEpicycles(width / 2, height / 2, 0, fourierPoints);
+            tracedPath.unshift(v);
+            beginShape();
+            noFill();
+            strokeWeight(2);
+            stroke(0, 255, 255); // Blue color for the traced path
+            for (let i = 0; i < tracedPath.length; i++) {
+                vertex(tracedPath[i].x, tracedPath[i].y);
+            }
+            endShape();
+
+            const deltaTime = TWO_PI / fourierPoints.length;
+            t += deltaTime;
+
+            if (t >= TWO_PI) {
+                fullCycleCompleted = true;
+            }
+        }
+    }
+
+    class ComplexNum {
+        constructor(real, imaginary) {
+            this.real = real;
+            this.imaginary = imaginary;
+        }
+    }
+
+    function computeDFT(input) {
+        const result = [];
+        const N = input.length;
+        for (let k = 0; k < N; k++) {
+            let sumReal = 0;
+            let sumImaginary = 0;
+            for (let n = 0; n < N; n++) {
+                const angle = (TWO_PI * k * n) / N;
+                sumReal += input[n].real * cos(angle) + input[n].imaginary * sin(angle);
+                sumImaginary += input[n].imaginary * cos(angle) - input[n].real * sin(angle);
+            }
+            sumReal = sumReal / N;
+            sumImaginary = sumImaginary / N;
+
+            const frequency = k;
+            const amplitude = sqrt(sumReal * sumReal + sumImaginary * sumImaginary);
+            const phase = atan2(sumImaginary, sumReal);
+            result[k] = { real: sumReal, imaginary: sumImaginary, frequency, amplitude, phase };
+        }
+        return result;
+    }
+</code>
+            </pre>
+        </details>
+    </section>
+
+</body>
+</html>
